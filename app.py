@@ -1,37 +1,43 @@
 import streamlit as st
 import pickle
 import numpy as np
-import sklearn
 
-# Set page title and favicon
-st.set_page_config(page_title="Salary Predictor", page_icon="💰")
-
-# 1. Properly Cache the Model to prevent loading loops
+# Load model
 @st.cache_resource
-def load_trained_model():
+def load_model():
+    with open("model.pkl", "rb") as f:
+        return pickle.load(f)
+
+model = load_model()
+
+st.title("Machine Learning Model App")
+
+st.write("Enter feature values:")
+
+# 🔍 Try dynamic feature handling (fallback: manual)
+try:
+    n_features = model.n_features_in_
+except:
+    n_features = 3  # default (change if needed)
+
+inputs = []
+
+# Create dynamic input fields
+for i in range(n_features):
+    val = st.number_input(f"Feature {i+1}", value=0.0)
+    inputs.append(val)
+
+input_array = np.array([inputs])
+
+if st.button("Predict"):
     try:
-        # Note: Ensure the filename matches exactly what you uploaded
-        with open('model (3).pkl', 'rb') as file:
-            model = pickle.load(file)
-        return model
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-        return None
-
-model = load_trained_model()
-
-# 2. User Interface
-st.title("Salary Prediction App")
-st.info(f"Running on scikit-learn version: {sklearn.__version__}")
-
-if model is not None:
-    years_exp = st.number_input("Years of Experience", min_value=0.0, max_value=50.0, value=1.0)
-
-    if st.button("Predict Salary"):
-        # Reshape for single feature prediction
-        features = np.array([[years_exp]])
-        prediction = model.predict(features)
+        prediction = model.predict(input_array)
+        st.success(f"Prediction: {prediction[0]}")
         
-        st.success(f"Estimated Salary: ${prediction[0]:,.2f}")
-else:
-    st.warning("Model file not found. Please ensure 'model (3).pkl' is in the same folder as app.py")
+        # If classification model
+        if hasattr(model, "predict_proba"):
+            proba = model.predict_proba(input_array)
+            st.write("Prediction Probability:", proba)
+            
+    except Exception as e:
+        st.error(f"Error: {e}")
